@@ -1,26 +1,31 @@
 import SourceModel from '../SourceModel';
 import GridCanvasModel from './GridCanvasModel';
+import IPlaygroundObject from './IPlaygroundObject';
+
+export type ObjectGUID = string;
 
 export default class PlaygroundModel {
     private _gridCanvasModel: GridCanvasModel;
-    private _source: SourceModel | null = null;
-    constructor(container: HTMLDivElement) {
+    private _objects: { [key: ObjectGUID]: IPlaygroundObject } = {};
+    private _container: HTMLElement;
+    constructor(container: HTMLElement) {
         this._gridCanvasModel = new GridCanvasModel(container);
+        this._container = container;
     }
 
     public init() {
         this._gridCanvasModel.init();
     }
 
-    public createSource() {
-        this._source = new SourceModel(0, 0);
-        this._source.startRadiation();
+    private _placeObject(object: IPlaygroundObject) {
+        const el = object.getDOMElement();
+        this._container.appendChild(el);
     }
 
-    public deleteSource() {
-      if (this._source) {
-         this._source.stopRadiation();
-         this._source = null;
-      }
+    public addObject(object: IPlaygroundObject) {
+        if (!this._objects[object.guid]) {
+            this._objects[object.guid] = object;
+            this._placeObject(object);
+        }
     }
 }

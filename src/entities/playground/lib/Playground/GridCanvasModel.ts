@@ -11,7 +11,7 @@ export default class GridCanvasModel extends CanvasModel {
    private _x0 = 0;
    private _y0 = 0;
 
-   constructor(container: HTMLDivElement) {
+   constructor(container: HTMLElement) {
       const canvas = document.createElement('canvas');
       canvas.className = 'canvas_grid';
       container.appendChild(canvas);

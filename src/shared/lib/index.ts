@@ -1,5 +1,6 @@
 export * from './arrays';
 export * from './colors';
+export * from './strings';
 export * from './coordinates';
 export * from './urls';
 
