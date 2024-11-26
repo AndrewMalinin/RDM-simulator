@@ -1,4 +1,3 @@
-import SourceModel from '../SourceModel';
 import GridCanvasModel from './GridCanvasModel';
 import IPlaygroundObject from './IPlaygroundObject';
 
@@ -6,7 +5,7 @@ export type ObjectGUID = string;
 
 export default class PlaygroundModel {
     private _gridCanvasModel: GridCanvasModel;
-    private _objects: { [key: ObjectGUID]: IPlaygroundObject } = {};
+    public objects: { [key: ObjectGUID]: IPlaygroundObject } = {};
     private _container: HTMLElement;
     constructor(container: HTMLElement) {
         this._gridCanvasModel = new GridCanvasModel(container);
@@ -17,15 +16,16 @@ export default class PlaygroundModel {
         this._gridCanvasModel.init();
     }
 
-    private _placeObject(object: IPlaygroundObject) {
-        const el = object.getDOMElement();
-        this._container.appendChild(el);
+    private _addObject(object: IPlaygroundObject) {
+        // const el = object.getDOMElement();
+        // this._container.appendChild(el);
     }
 
     public addObject(object: IPlaygroundObject) {
-        if (!this._objects[object.guid]) {
-            this._objects[object.guid] = object;
-            this._placeObject(object);
+        if (!this.objects[object.guid]) {
+            this.objects[object.guid] = object;
+            this.objects = {...this.objects}
+            this._addObject(object);
         }
     }
 }
