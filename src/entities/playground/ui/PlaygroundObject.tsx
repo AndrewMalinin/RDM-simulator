@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
-import IPlaygroundObject, { ICON_TYPE, IPosition } from '../lib/Playground/IPlaygroundObject';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import IPlaygroundObject, { ICON_TYPE, ICoords, IPosition } from '../lib/Playground/IPlaygroundObject';
 import { ReactComponent as rlsIcon } from '../../../shared/images/icons/rls.svg';
 import { ReactComponent as sourceIcon } from '../../../shared/images/icons/source.svg';
 import { SvgIcon } from '@mui/material';
+import PlayGroundModelContext from './context/PlayGroundModelContext';
 
 type PlaygroundObjectProps = { object: IPlaygroundObject };
 
@@ -72,17 +73,39 @@ const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>, onPositionChanged:
 };
 
 export default function PlaygroundObject({ object }: PlaygroundObjectProps) {
+    const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+    const plModel = useContext(PlayGroundModelContext);
+    const ref = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
-        
-    }, [object]);
+        if (object && plModel) {
+            object.subscribe(IPlaygroundObject.SIGNALS.COORDS_UPDATED, (c) => {
+                recalculatePosition(c);
+            });
+            recalculatePosition(object.coords);
+        }
+    }, [object, plModel]);
+
+    function recalculatePosition(coords: ICoords) {
+        if (!ref || !ref.current || !plModel) return;
+        const position = plModel.getPositionByCoords(coords);
+        console.log(coords, position)
+        const elBounds = ref.current.getBoundingClientRect();
+        setPosition({ top: position.y - elBounds.height / 2, left: position.x - elBounds.width / 2 });
+    }
+
     return (
         <div
+            ref={ref}
             key={object.guid}
             className="label-object"
             onMouseDown={(e) => {
                 handleMouseDown(e, object.setPosition.bind(object));
             }}
             style={{
+                opacity: position ? 1 : 0,
+                top: position?.top + 'px',
+                left: position?.left + 'px',
                 fontSize: object.style.size,
                 color: object.style.color
             }}

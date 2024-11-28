@@ -9,6 +9,7 @@ import { useSelector } from 'react-redux';
 import { objectsSelector } from '../model';
 import SourceModel from '../lib/SourceModel';
 import PlaygroundObject from './PlaygroundObject';
+import PlayGroundModelContext from './context/PlayGroundModelContext';
 
 type PlaygroundProps = {};
 
@@ -19,17 +20,17 @@ export const Playground: FC<PlaygroundProps> = ({}) => {
 
     useEffect(() => {
         const _model = new PlaygroundModel(document.querySelector('.playground') as HTMLDivElement);
-        _model.init();
         model.current = _model;
         addSource();
     }, []);
 
     function addSource() {
-        const sourceLabel = new Label();
-        const receiverLabel = new Label();
+        const sourceLabel = new Label({ x: 10, y: 10 });
+        const receiverLabel = new Label({ x: -10, y: -10 });
         sourceLabel.icon = ICON_TYPE.SOURCE;
         receiverLabel.icon = ICON_TYPE.RECEIVER;
-        receiverLabel.addTo(model.current)
+        receiverLabel.style.size = 32;
+        receiverLabel.addTo(model.current);
         const sourceModel = new SourceModel();
 
         sourceLabel.subscribe(IPlaygroundObject.SIGNALS.COORDS_UPDATED, (props: any) => {
@@ -37,16 +38,18 @@ export const Playground: FC<PlaygroundProps> = ({}) => {
         });
 
         sourceModel.subscribe(SourceModel.SIGNALS.COORDS_UPDATED, (props) => {
-            console.log(`sourceModel coords updated: [${props?.x}, ${props?.y}]`);
+            //console.log(`sourceModel coords updated: [${props?.x}, ${props?.y}]`);
         });
         sourceLabel.addTo(model.current!);
     }
     return (
-        <div className="playground">
-            {objects &&
-                Object.values(objects).map((object) => {
-                    return <PlaygroundObject object={object} key={object.guid} />;
-                })}
-        </div>
+        <PlayGroundModelContext.Provider value={model.current}>
+            <div className="playground">
+                {objects &&
+                    Object.values(objects).map((object) => {
+                        return <PlaygroundObject object={object} key={object.guid} />;
+                    })}
+            </div>
+        </PlayGroundModelContext.Provider>
     );
 };

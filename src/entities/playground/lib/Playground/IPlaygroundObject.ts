@@ -28,12 +28,13 @@ export interface IPosition {
 export default class IPlaygroundObject extends Observable {
     public static SIGNALS = {
         COORDS_UPDATED: 'c_u',
+        COORDS_MANUALLY_SETTED: 'c_m_s',
         POSITION_TRYING_TO_CHANGE: 'p_t_c'
     };
     public coords: ICoords = { x: 0, y: 0 };
     private _position: IPosition = { x: 0, y: 0 };
     public style = {
-        size: 32,
+        size: 24,
         color: '#100588'
     };
     public guid: ObjectGUID = createGUID();
@@ -43,10 +44,12 @@ export default class IPlaygroundObject extends Observable {
     constructor(c?: ICoords) {
         super();
         if (c) {
+            this.setCoords(c);
+            //this._emit(IPlaygroundObject.SIGNALS.COORDS_UPDATED, c);
         }
     }
 
-    private setCoords(c: ICoords) {
+    public setCoords(c: ICoords) {
         this.coords = { ...c };
         this._emit(IPlaygroundObject.SIGNALS.COORDS_UPDATED, c);
     }
