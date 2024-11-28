@@ -1,4 +1,5 @@
 import Observable from '../../../shared/lib/Observable';
+import { ICoords } from './Playground/IPlaygroundObject';
 
 enum PULSE_TYPE {
     CHIRP = 'chirp'
@@ -6,7 +7,7 @@ enum PULSE_TYPE {
 
 export default class SourceModel extends Observable {
     static SIGNALS = {
-        POSITION_UPDATED: 'p_u',
+        COORDS_UPDATED: 'c_u',
         RADIATING: 'r'
     };
     private _samplingFrequency = 10_000;
@@ -14,20 +15,21 @@ export default class SourceModel extends Observable {
     private _pulseType = PULSE_TYPE.CHIRP;
     private _pulseRepetitionPeriod_s = 1000;
     private _pulseDuration_us = 50;
-    public position = { x: 0, y: 0 };
+    public coords: ICoords | null = null;
     private _radiatingTimer: any = null;
 
-    constructor(x: number, y: number) {
-        super();
-        this.updatePosition(x, y);
+    public updateCoords(coords: ICoords) {
+        if (this.coords !== null && this.coords.x !== coords.x && this.coords.y !== coords.y) {
+            this.coords = { ...coords };
+            this._emit(SourceModel.SIGNALS.COORDS_UPDATED, this.coords);
+        }
+        else if (this.coords === null) {
+            this.coords = { ...coords };
+            this._emit(SourceModel.SIGNALS.COORDS_UPDATED, this.coords);
+        }
     }
 
-    updatePosition(x: number, y: number) {
-        this.position.x = x;
-        this.position.y = y;
-    }
-
-    startRadiation() {
+    public startRadiation() {
         this._radiatingTimer = setInterval(() => {
             this.radiate();
         }, this._pulseRepetitionPeriod_s);

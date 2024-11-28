@@ -20,32 +20,46 @@ export interface ICoords {
     y: number;
 }
 
+export interface IPosition {
+    x: number;
+    y: number;
+}
+
 export default class IPlaygroundObject extends Observable {
     public static SIGNALS = {
         COORDS_UPDATED: 'c_u',
         POSITION_TRYING_TO_CHANGE: 'p_t_c'
     };
-    public readonly position: ICoords = { x: 0, y: 0 };
+    public coords: ICoords = { x: 0, y: 0 };
+    private _position: IPosition = { x: 0, y: 0 };
+    public style = {
+        size: 32,
+        color: '#100588'
+    };
     public guid: ObjectGUID = createGUID();
     public icon: ICON_TYPE = ICON_TYPE.CIRCLE;
-    private _domElement: HTMLElement | null = null;
     private _playgroundModel: PlaygroundModel | null = null;
 
-    public getDOMElement() {
-        if (this._domElement) {
-            return this._domElement;
+    constructor(c?: ICoords) {
+        super();
+        if (c) {
         }
-        const el = document.createElement('div');
-        el.className = 'post-label';
+    }
 
-        // makeDraggable(el);
-        this._domElement = el;
-        return el;
+    private setCoords(c: ICoords) {
+        this.coords = { ...c };
+        this._emit(IPlaygroundObject.SIGNALS.COORDS_UPDATED, c);
+    }
+
+    public setPosition(p: IPosition) {
+        this._position = p;
+        if (this._playgroundModel) {
+            this.setCoords(this._playgroundModel.getCoordsByPosition(p));
+        }
     }
 
     public addTo(playgroundModel: PlaygroundModel) {
         playgroundModel.addObject(this);
+        this._playgroundModel = playgroundModel;
     }
-
-    public setPosition(x: number, y: number) {}
 }

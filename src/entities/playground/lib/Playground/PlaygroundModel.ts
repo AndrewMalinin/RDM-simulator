@@ -1,12 +1,18 @@
 import GridCanvasModel from './GridCanvasModel';
-import IPlaygroundObject from './IPlaygroundObject';
+import IPlaygroundObject, { IPosition } from './IPlaygroundObject';
+import { store } from '../../../../app/store';
+import { addObject, objectsSelector } from '../../model';
 
 export type ObjectGUID = string;
 
 export default class PlaygroundModel {
     private _gridCanvasModel: GridCanvasModel;
-    public objects: { [key: ObjectGUID]: IPlaygroundObject } = {};
     private _container: HTMLElement;
+
+    get objects() {
+        return objectsSelector(store.getState());
+    }
+
     constructor(container: HTMLElement) {
         this._gridCanvasModel = new GridCanvasModel(container);
         this._container = container;
@@ -16,6 +22,10 @@ export default class PlaygroundModel {
         this._gridCanvasModel.init();
     }
 
+    public getCoordsByPosition(position: IPosition) {
+        return this._gridCanvasModel.getCoordsByPosition(position);
+    }
+
     private _addObject(object: IPlaygroundObject) {
         // const el = object.getDOMElement();
         // this._container.appendChild(el);
@@ -23,8 +33,7 @@ export default class PlaygroundModel {
 
     public addObject(object: IPlaygroundObject) {
         if (!this.objects[object.guid]) {
-            this.objects[object.guid] = object;
-            this.objects = {...this.objects}
+            store.dispatch(addObject(object));
             this._addObject(object);
         }
     }

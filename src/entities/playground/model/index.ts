@@ -2,24 +2,30 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import IPlaygroundObject from '../lib/Playground/IPlaygroundObject';
 import { ObjectGUID } from '../lib';
 
-interface IPlayground {
+interface IPlaygroundState {
     objects: { [key: ObjectGUID]: IPlaygroundObject };
 }
 
-const initialState = { objects: {} };
+const initialState: IPlaygroundState = {
+    objects: {}
+};
 
 export const settingsSlice = createSlice({
     name: 'playground',
     initialState,
     reducers: {
         addObject: (_state, action: PayloadAction<IPlaygroundObject>) => {
-            return action.payload;
-        },
+            console.log(action.payload);
+            console.log(_state);
+            _state.objects = { ..._state.objects, [action.payload.guid]: action.payload };
+        }
+    },
+    selectors: {
+        objectsSelector: (state) => state.objects
     }
 });
 
-export const { updateStep } = settingsSlice.actions;
-
-export const getSettings = (state: RootState) => state.settings;
+export const { addObject } = settingsSlice.actions;
+export const { objectsSelector } = settingsSlice.selectors;
 
 export default settingsSlice.reducer;
