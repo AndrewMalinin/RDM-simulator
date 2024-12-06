@@ -2,11 +2,13 @@ import GridCanvasModel from './GridCanvasModel';
 import IPlaygroundObject, { ICoords, IPosition } from './IPlaygroundObject';
 import { store } from '../../../../app/store';
 import { addObject, objectsSelector } from '../../model';
+import GraphCanvasModel from './GraphCanvasModel';
 
 export type ObjectGUID = string;
 
 export default class PlaygroundModel {
     private _gridCanvasModel: GridCanvasModel;
+    public graphModel: GraphCanvasModel;
     private _container: HTMLElement;
 
     public px_per_unit = 20;
@@ -32,7 +34,14 @@ export default class PlaygroundModel {
             this._drawingArea.y_0,
             this.px_per_unit
         );
+        this.graphModel = new GraphCanvasModel(
+            container,
+            this._drawingArea.x_0,
+            this._drawingArea.y_0,
+            this.px_per_unit
+        );
         this._gridCanvasModel.init();
+        this.graphModel.init();
     }
 
     public init() {

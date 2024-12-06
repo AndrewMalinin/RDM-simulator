@@ -1,4 +1,4 @@
-import Observable from '../../../shared/lib/Observable';
+import Observable from '../../../shared/lib/helpers/Observable';
 import ReceiverModel, { ReceiverID } from './ReceiverModel';
 
 export default class ReceiverModelCollection extends Observable {

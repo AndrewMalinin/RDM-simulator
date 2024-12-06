@@ -1,4 +1,4 @@
-import Observable from '../../../shared/lib/Observable';
+import Observable from '../../../shared/lib/helpers/Observable';
 import { ICoords } from './Playground/IPlaygroundObject';
 
 enum PULSE_TYPE {

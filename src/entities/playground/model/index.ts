@@ -15,8 +15,6 @@ export const settingsSlice = createSlice({
     initialState,
     reducers: {
         addObject: (_state, action: PayloadAction<IPlaygroundObject>) => {
-            console.log(action.payload);
-            console.log(_state);
             _state.objects = { ..._state.objects, [action.payload.guid]: action.payload };
         }
     },

@@ -1,10 +1,9 @@
 import CanvasModel from './CanvasModel';
-import { ICoords, IPosition } from './IPlaygroundObject';
 
 export default class GridCanvasModel extends CanvasModel {
-    //Сколько пикселей в одной единице сетки
     private _x0: number;
     private _y0: number;
+    //Сколько пикселей в одной единице сетки
     public px_per_unit = 20;
 
     public config = {
@@ -36,7 +35,7 @@ export default class GridCanvasModel extends CanvasModel {
         this.ctxHeight = containerBound.height;
 
         this.ctx.translate(this._x0, this._y0);
-        this.ctx.rotate(Math.PI);
+        //this.ctx.rotate(Math.PI);
         requestAnimationFrame(() => {
             //console.time('grid render time')
             this.draw();
@@ -81,9 +80,9 @@ export default class GridCanvasModel extends CanvasModel {
     }
 
     draw() {
-        this.ctx.clearRect(0, 0, this.ctxWidth, this.ctxHeight);
+        this.ctx.clearRect(-this.ctxWidth / 2, -this.ctxHeight / 2, this.ctxWidth, this.ctxHeight);
         this.ctx.fillStyle = this.config.BACKGROUND_COLOR;
-        this.ctx?.fillRect(0, 0, this.ctxWidth, this.ctxHeight);
+        this.ctx.fillRect(-this.ctxWidth / 2, -this.ctxHeight / 2, this.ctxWidth, this.ctxHeight);
         this.ctx.translate(0.5, 0.5);
         this._drawAxis();
         this._drawGrid();

@@ -73,7 +73,7 @@ const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>, onPositionChanged:
 };
 
 export default function PlaygroundObject({ object }: PlaygroundObjectProps) {
-    const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+    //const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
     const plModel = useContext(PlayGroundModelContext);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -89,9 +89,10 @@ export default function PlaygroundObject({ object }: PlaygroundObjectProps) {
     function recalculatePosition(coords: ICoords) {
         if (!ref || !ref.current || !plModel) return;
         const position = plModel.getPositionByCoords(coords);
-        console.log(coords, position)
         const elBounds = ref.current.getBoundingClientRect();
-        setPosition({ top: position.y - elBounds.height / 2, left: position.x - elBounds.width / 2 });
+        ref.current.style.top = position.y - elBounds.height / 2 + 'px';
+        ref.current.style.left = position.x - elBounds.width / 2 + 'px';
+        //setPosition({ top: position.y - elBounds.height / 2, left: position.x - elBounds.width / 2 });
     }
 
     return (
@@ -103,9 +104,6 @@ export default function PlaygroundObject({ object }: PlaygroundObjectProps) {
                 handleMouseDown(e, object.setPosition.bind(object));
             }}
             style={{
-                opacity: position ? 1 : 0,
-                top: position?.top + 'px',
-                left: position?.left + 'px',
                 fontSize: object.style.size,
                 color: object.style.color
             }}

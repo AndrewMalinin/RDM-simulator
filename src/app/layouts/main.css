@@ -1,0 +1,14 @@
+.layout__container {
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    height: 100%
+}
+
+.layout__header {
+    flex: 0 0 auto
+}
+
+.layout__content {
+    flex: 1 0 auto
+}

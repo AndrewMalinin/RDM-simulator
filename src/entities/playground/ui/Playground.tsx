@@ -10,6 +10,7 @@ import { objectsSelector } from '../model';
 import SourceModel from '../lib/SourceModel';
 import PlaygroundObject from './PlaygroundObject';
 import PlayGroundModelContext from './context/PlayGroundModelContext';
+import GraphCanvasModel from '../lib/Playground/GraphCanvasModel';
 
 type PlaygroundProps = {};
 
@@ -37,9 +38,16 @@ export const Playground: FC<PlaygroundProps> = ({}) => {
             sourceModel.updateCoords(props as ICoords);
         });
 
-        sourceModel.subscribe(SourceModel.SIGNALS.COORDS_UPDATED, (props) => {
-            //console.log(`sourceModel coords updated: [${props?.x}, ${props?.y}]`);
-        });
+        function redraw() {
+            model.current?.graphModel.clear();
+            model.current?.graphModel.addGraphic([
+                [receiverLabel.coords.x, receiverLabel.coords.y],
+                [sourceLabel.coords.x, sourceLabel.coords.y]
+            ]);
+        }
+
+        sourceLabel.subscribe(IPlaygroundObject.SIGNALS.COORDS_UPDATED, redraw);
+        receiverLabel.subscribe(IPlaygroundObject.SIGNALS.COORDS_UPDATED, redraw);
         sourceLabel.addTo(model.current!);
     }
     return (

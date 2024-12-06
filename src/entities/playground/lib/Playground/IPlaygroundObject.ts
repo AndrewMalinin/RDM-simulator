@@ -1,5 +1,5 @@
-import { createGUID } from '../../../../shared/lib';
-import Observable from '../../../../shared/lib/Observable';
+import { createGUID } from '../../../../shared/lib/helpers';
+import Observable from '../../../../shared/lib/helpers/Observable';
 import PlaygroundModel, { ObjectGUID } from './PlaygroundModel';
 
 export enum ICON_TYPE {
