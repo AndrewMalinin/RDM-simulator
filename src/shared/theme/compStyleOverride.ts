@@ -196,7 +196,7 @@ export default function componentStyleOverrides(theme: any): Components<Theme> {
             styleOverrides: {
                 root: {
                     borderRadius: '12px 12px 0 0',
-                    border: `2px solid ${theme.colors.grey200}`,
+                    border: `2px solid ${theme.colors.darkLevel2}`,
                     borderBottom: 'none',
                     '&.Mui-selected': {
                         color: theme.colors.secondaryLight,

@@ -20,9 +20,13 @@ export const links = () => [
         href: colors
     }
 ];
+// --deep1: #15181f;
+// --deep2: #1a1e27;
+// --deep3: #1f232e;
+// --deep4: #222530;
 const theme = (customization) => {
     const color = {
-        paper: '#ffffff',
+        paper: '#15181f',
         primaryLight: '#eef2f6',
         primary200: '#90caf9',
         primaryMain: '#2196f3',
@@ -55,9 +59,9 @@ const theme = (customization) => {
         grey700: '#364152',
         grey900: '#121926',
         darkPaper: '#111936',
-        darkBackground: '#1a223f',
-        darkLevel1: '#29314f',
-        darkLevel2: '#212946',
+        darkBackground: '#15181f',
+        darkLevel1: '#1a1e27',
+        darkLevel2: '#1f232e',
         darkTextTitle: '#d7dcec',
         darkTextPrimary: '#bdc8f0',
         darkTextSecondary: '#8492c4',

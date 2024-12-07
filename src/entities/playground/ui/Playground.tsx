@@ -1,20 +1,17 @@
-import React, { MouseEventHandler, useEffect, useRef, useState, type FC } from 'react';
+import React, { useEffect, useRef, type FC } from 'react';
 
 import './playground.css';
 import PlaygroundModel from '../lib/Playground/PlaygroundModel';
 import Label from '../lib/Playground/Label';
-import IPlaygroundObject, { ICON_TYPE, ICoords, IPosition } from '../lib/Playground/IPlaygroundObject';
+import IPlaygroundObject, { ICON_TYPE, ICoords } from '../lib/Playground/IPlaygroundObject';
 
 import { useSelector } from 'react-redux';
 import { objectsSelector } from '../model';
 import SourceModel from '../lib/SourceModel';
 import PlaygroundObject from './PlaygroundObject';
 import PlayGroundModelContext from './context/PlayGroundModelContext';
-import GraphCanvasModel from '../lib/Playground/GraphCanvasModel';
 
-type PlaygroundProps = {};
-
-export const Playground: FC<PlaygroundProps> = ({}) => {
+export const Playground: FC = () => {
     const model = useRef<PlaygroundModel | null>(null);
     const objects = useSelector(objectsSelector);
     const sourceModel = useRef<SourceModel | null>(null);
@@ -31,6 +28,7 @@ export const Playground: FC<PlaygroundProps> = ({}) => {
         sourceLabel.icon = ICON_TYPE.SOURCE;
         receiverLabel.icon = ICON_TYPE.RECEIVER;
         receiverLabel.style.size = 32;
+        //@ts-ignore
         receiverLabel.addTo(model.current);
         const sourceModel = new SourceModel();
 
