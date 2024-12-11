@@ -45,3 +45,62 @@ export function isArraysContainSameElements(arr1: any[], arr2: any[]) {
 export function getLastElement<T>(arr: T[]): T {
     return arr[arr.length - 1];
 }
+
+export function step(a: number, b: number, s: number) {
+    if (a >= b) return [];
+    const r = [];
+    let i = a;
+    while (i <= b) {
+        r.push(Math.round(i * 10) / 10);
+        i += s;
+    }
+    return r;
+}
+
+export function smartRange(a: number, b: number, count: number) {
+    const step = (b - a) / (count - 1);
+    if (Math.abs(step) <= Number.MIN_VALUE) return [];
+    const r = [];
+    let temp = a;
+    for (let i = 0; i < count; i++) {
+        r.push(Math.round(temp * 1000) / 1000);
+        temp += step;
+    }
+    // Поправка на случай иррационального step
+    if (r[count - 1] !== b) {
+        r[count - 1] = b;
+    }
+    return r;
+}
+
+export function range(a: number, b: number, count: number) {
+    const step = (b - a) / (count - 1);
+    if (Math.abs(step) <= Number.MIN_VALUE) return [];
+    const r = [];
+    let temp = a;
+    for (let i = 0; i < count; i++) {
+        r.push(temp);
+        temp += step;
+    }
+    // Поправка на случай иррационального step
+    if (r[count - 1] !== b) {
+        r[count - 1] = b;
+    }
+    return r;
+}
+
+export function* rangeGen(a: number, b: number, count: number) {
+    const step = (b - a) / (count - 1);
+    if (Math.abs(step) <= Number.MIN_VALUE) return [];
+    let temp = a;
+    for (let i = 0; i < count; i++) {
+        yield temp;
+        temp += step;
+    }
+}
+
+export function* genWrapper(arr: Array<any>) {
+    for (let i = 0; i < arr.length; i++) {
+        yield arr[i];
+    }
+}

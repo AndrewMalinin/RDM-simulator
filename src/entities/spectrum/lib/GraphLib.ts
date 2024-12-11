@@ -1,12 +1,36 @@
+import { debounce, genWrapper, range, rangeGen, smartRange, step } from '../../../shared/lib/helpers';
 import Observable from '../../../shared/lib/helpers/Observable';
-import { CommonUtils } from './commonUtils.js';
-import GraphDataModel from './GraphDataModel';
+import GraphDataModel, { VALUES_TYPE } from './GraphDataModel';
 
 interface IGraphLibConfig {
     paddings: number[];
     backgroundColor: string;
+    defaultGraphColor: string;
+    labels: {
+        color: string;
+        mainLabelsColor: string;
+        fontFamily: string;
+        fontSize: number;
+        lineHeight: number;
+        /**
+         * Расстояние от надписи до засечки
+         *
+         * @type {number}
+         */
+        padding: number;
+        unitY: string;
+        unitX: string;
+    };
+    grid: {
+        color: string;
+    };
     axes: {
         color: string;
+        serifHeight: number;
+        minSpaceBetweenLabels: {
+            x: number;
+            y: number;
+        };
     };
 }
 
@@ -40,10 +64,8 @@ export class GraphLib extends Observable {
     private _pointerCanvas: HTMLCanvasElement;
     private _width = 0;
     private _height = 0;
-    private _xLabelsHeight = 50;
-    private _yLabelsWidth = 50;
 
-    private _drawingArea = {
+    private _drawingArea: IDrawingArea = {
         x_0: 0,
         y_0: 0,
         x_min: 0,
@@ -54,11 +76,38 @@ export class GraphLib extends Observable {
 
     public config: IGraphLibConfig = {
         paddings: [50, 50, 10, 10],
-        backgroundColor: '#1a1e27',
+        backgroundColor: '#080e17',
+        defaultGraphColor: '#84bff9',
+        labels: {
+            color: '#9fb6d5',
+            mainLabelsColor: 'rgba(0, 255, 88, 1)',
+            fontFamily: 'Consolas',
+            fontSize: 16,
+            lineHeight: 1.2,
+            padding: 5,
+            unitY: 'дБ',
+            unitX: 'МГц'
+        },
+        grid: {
+            color: '#263a52'
+        },
         axes: {
-            color: 'rgba(230,230,250,0.2)'
+            color: '#385f8f',
+            serifHeight: 5,
+            minSpaceBetweenLabels: {
+                y: 20,
+                x: 50
+            }
         }
     };
+
+    private _yLabelsWidth = 50;
+    private _yLabels: number[] = [];
+    private _xLabels = [];
+
+    private get _labelsHeight() {
+        return this.config.labels.fontSize * this.config.labels.lineHeight;
+    }
 
     constructor(params: IGraphLibParams) {
         super();
@@ -105,34 +154,8 @@ export class GraphLib extends Observable {
         //           strokeOpacity: 1
         //       }
         //   };
-        //   this.maxY = 100;
-        //   this.minY = 0;
-        //   this.segmentList = undefined;
-        //   this.labelsXStep = [10, 20, 25, 50, 75, 100, 125, 150, 200, 250, 400, 500, 750, 1000, 2000]; //[2000, 1000, 750, 500, 250, 200, 100, 75, 50, 25, 20, 10];//
-        //   this.handleCanvasResize();
-        //   window.addEventListener('resize', () => {
-        //       this.handleCanvasResize();
-        //   });
-
-        //   window.addEventListener('markupResize', () => {
-        //       this.handleCanvasResize();
-        //   });
-
-        //   document.querySelector('#layer_pointer').addEventListener('pointermove', (e) => {
-        //       this.drawPointer(e);
-        //   });
-
-        //   document.querySelector('#layer_pointer').addEventListener('pointerout', (e) => {
-        //       this.ptrCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-        //   });
-
-        //   document.querySelector('.spectrum').addEventListener('pointerdown', (e) => {
-        //       this.handleMouseClick(e);
-        //   });
     }
 
-    // ctx.translate(0, canvas.height);
-    // ctx.scale(1,-1);
     private _createCanvas(container: HTMLDivElement, zIndex: number, id?: string) {
         const canvas = document.createElement('canvas');
         canvas.className = 'graphlib-canvas-layer';
@@ -145,35 +168,38 @@ export class GraphLib extends Observable {
     private _configureCanvas(canvas: HTMLCanvasElement) {
         canvas.width = this._width;
         canvas.height = this._height;
-        const _ctx = ctx(canvas);
-        _ctx.translate(0, this._height);
-        _ctx.scale(1, -1);
     }
 
     private _handleContainerResize() {
         const containerBounds = this._container.getBoundingClientRect();
         this._width = containerBounds.width;
         this._height = containerBounds.height;
-        this._recalculateDrawingArea();
         this._configureCanvas(this._axesCanvas);
         this._configureCanvas(this._graphCanvas);
         this._configureCanvas(this._pointerCanvas);
+        this._updateView();
+    }
+
+    private _updateView() {
+        this._computeAxisLabels();
+        this._recalculateDrawingArea();
         requestAnimationFrame(() => {
+            this.clear();
             this.updateAxesLayer();
+            this.updateGraphLayer();
         });
-        this.clear();
     }
 
     private _recalculateDrawingArea() {
-        const x0 = this.config.paddings[3] + this._yLabelsWidth + 0.5;
-        const y0 = this.config.paddings[2] + this._xLabelsHeight - 0.5;
+        const x0 = this.config.paddings[3] + this._yLabelsWidth + this.config.axes.serifHeight + 0.5;
+        const y0 = this._height - this.config.paddings[0] - this._labelsHeight + 0.5;
         this._drawingArea = {
             x_0: x0,
             y_0: y0,
             x_min: x0,
             x_max: this._width - this.config.paddings[1],
-            y_min: y0,
-            y_max: this._height - this.config.paddings[0]
+            y_min: this.config.paddings[0],
+            y_max: y0
         };
     }
 
@@ -186,403 +212,184 @@ export class GraphLib extends Observable {
         });
 
         resizeObserver.observe(this._container);
+        this._handleContainerResize();
 
-        //   let ctx = canvas.getContext('2d');
-        //   this.canvasWidth = canvas.width;
-        //   this.canvasHeight = canvas.height;
-        //   this.drawArea.x = this.canvasWidth - (this.config.axes.padding.left + this.config.axes.padding.right);
-        //   this.drawArea.y = this.canvasHeight - (this.config.axes.padding.top + this.config.axes.padding.bottom);
-        //   this.ctx = ctx;
-        //   this.maxCtx = document.querySelector('#layer_graph-max').getContext('2d');
-        //   this.axesCtx = document.querySelector('#layer_axes').getContext('2d');
-        //   this.ptrCtx = document.querySelector('#layer_pointer').getContext('2d');
-        //   this.ctx.lineJoin = 'round';
-        //   this.ctx.lineCap = 'round';
-        //   this.maxCtx.lineJoin = 'round';
-        //   this.maxCtx.lineCap = 'round';
-        //   this.ptrCtx.strokeStyle = 'rgba(255, 255,255,0.7)';
-        //   this.ptrCtx.fillStyle = 'rgba(0, 246,154,1)';
-        //   this.ptrCtx.font = `${this.config.labels.fontSize} ${this.config.labels.fontFamily}`;
-        //   this.ptrCtx.lineWidth = 1;
+        this.model.subscribe(GraphDataModel.SIGNALS.DATA_UPDATED, () => {
+            this.updateGraphLayer();
+        });
+        this.model.subscribe(GraphDataModel.SIGNALS.MINMAX_UPDATED, () => {
+            this._updateView();
+        });
     }
 
     private _drawGrid() {}
 
-    private _drawAxes() {
-        const c = ctx(this._axesCanvas);
-        // ====================== Стиль линий ==========================//
-        c.strokeStyle = this.config.axes.color;
-        c.lineWidth = 1;
-        c.beginPath();
-        c.moveTo(this._drawingArea.x_0, this._drawingArea.y_0);
-        c.lineTo(this._drawingArea.x_max, this._drawingArea.y_0);
-        c.stroke();
-        c.moveTo(this._drawingArea.x_0, this._drawingArea.y_0);
-        c.lineTo(this._drawingArea.x_0, this._drawingArea.y_max);
-        c.stroke();
-    }
-
     public updateAxesLayer() {
         this._drawGrid();
-        this._drawAxes();
+        this._updateYAxis();
+        this._updateXAxis();
     }
 
     public reset() {
         this._handleContainerResize();
     }
 
-    public updateGraph() {
-        
+    public updateGraphLayer() {
+        this._clearGraphCanvas();
+        if (!this.model.minMax || !this.model.data) return;
+        const {
+            x: [xMin, xMax],
+            y: [yMin, yMax]
+        } = this.model.minMax;
+        const data = this.model.data;
+        const c = ctx(this._graphCanvas);
+        c.beginPath();
+        c.strokeStyle = data.color || this.config.defaultGraphColor;
+        const values = data.data;
+        const xW = Math.abs((this._drawingArea.x_max - this._drawingArea.x_0) / (xMax - xMin));
+        const yW = Math.abs((this._drawingArea.y_0 - this._drawingArea.y_min) / (yMax - yMin));
+
+        const { x_0, y_0 } = this._drawingArea;
+        const xValuesGen =
+            values.type === VALUES_TYPE.X_Y
+                ? genWrapper(values.x)
+                : rangeGen(values.x[0], values.x[1], values.y.length);
+        for (let i = 0; i < values.y.length; i++) {
+            c.lineTo(x_0 + xValuesGen.next().value * xW, y_0 - (values.y[i] - yMin) * yW);
+        }
+        c.stroke();
+        c.closePath();
     }
 
-    // draw(panoramasStorage, segmentList, segmentListChanged = false) {
-    //     //   console.time('Graph:')
-    //     if (this.segmentList === undefined || segmentListChanged) {
-    //         this.segmentList = segmentList;
-    //         this.updateYAxis();
-    //         this.updateXAxis();
-    //     }
+    private _computeAxisLabels(): boolean {
+        if (!this.model.minMax) {
+            this._yLabels = [];
+            this._xLabels = [];
+            return true;
+        }
+        let needRelayouting = false;
 
-    //     if (this.segmentList !== undefined) {
-    //         this.clear();
-    //         Object.values(panoramasStorage).forEach((drone, i) => {
-    //             for (let panorama in drone) {
-    //                 // Ищем к какому сегменту принаджелит текущая панорама
-    //                 let numberOfSegment = -1;
-    //                 let i = 0;
-    //                 while (i < this.segmentList.length) {
-    //                     if (
-    //                         this.segmentList[i][0] <= drone[panorama].startFreq &&
-    //                         this.segmentList[i][1] >= drone[panorama].endFreq
-    //                     ) {
-    //                         numberOfSegment = i;
-    //                         break;
-    //                     }
-    //                     i++;
-    //                 }
-    //                 if (-1 === numberOfSegment) continue;
+        const {
+            y: [yMin, yMax]
+        } = this.model.minMax;
 
-    //                 let fullSegmentsLength = this.segmentList.reduce((accum, item) => {
-    //                     return accum + (item[1] - item[0]);
-    //                 }, 0);
+        // Максимальное количество подписей, которое уместится на текущую ось Y (включая граничные подписи)
+        const maxYLabelsCount = Math.floor(
+            (this._drawingArea.y_0 - this._drawingArea.y_min) /
+                (this.config.axes.minSpaceBetweenLabels.y + this._labelsHeight) +
+                1
+        );
 
-    //                 let startSegmentOffset;
-    //                 if (0 == numberOfSegment) startSegmentOffset = 0;
-    //                 else {
-    //                     startSegmentOffset =
-    //                         this.drawArea.x *
-    //                         (this.segmentList.slice(0, numberOfSegment).reduce((accum, item) => {
-    //                             return accum + (item[1] - item[0]);
-    //                         }, 0) /
-    //                             fullSegmentsLength);
-    //                 }
+        if (maxYLabelsCount < 2) return false;
+        const c = ctx(this._axesCanvas);
+        c.font = `${this.config.labels.fontSize}px ${this.config.labels.fontFamily}`;
 
-    //                 if (drone[panorama].startFreq - this.segmentList[i][0] > 0) {
-    //                     startSegmentOffset +=
-    //                         this.drawArea.x *
-    //                         ((drone[panorama].startFreq - this.segmentList[i][0]) / fullSegmentsLength);
-    //                 }
+        const labelArray = smartRange(yMin, yMax, maxYLabelsCount);
+        this._yLabels = labelArray;
+        const yLabelMaxWidth = Math.ceil(
+            Math.max(...labelArray.map((label) => c.measureText(String(label)).width)) + this.config.labels.padding
+        );
+        if (yLabelMaxWidth !== this._yLabelsWidth) {
+            this._yLabelsWidth = yLabelMaxWidth;
+            needRelayouting = true;
+        }
+        return needRelayouting;
+    }
 
-    //                 let segmentLength = this.drawArea.x * (drone[panorama].band / fullSegmentsLength);
-    //                 this.drawSegmentSpectrum(
-    //                     drone[panorama].counts,
-    //                     drone[panorama].maxCounts,
-    //                     drone[panorama].color,
-    //                     Math.floor(startSegmentOffset) + 0.5,
-    //                     Math.floor(segmentLength) - 1.5
-    //                 );
-    //             }
-    //         });
-    //     }
-    //     //   console.timeEnd('Graph:')
-    // }
+    private _updateYAxis() {
+        const c = ctx(this._axesCanvas);
+        // ====================== Вертикальная линия ==========================//
+        c.strokeStyle = this.config.axes.color;
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(this._drawingArea.x_0, this._drawingArea.y_0);
+        c.lineTo(this._drawingArea.x_0, this._drawingArea.y_min);
+        c.stroke();
+        // this.axesCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+        c.globalCompositeOperation = 'source-over';
+        // ====================== Стиль линий ==========================//
+        c.strokeStyle = this.config.axes.color;
+        c.lineWidth = 1;
+        c.setLineDash([]);
+        // ====================== Стиль подписей =======================//
+        c.fillStyle = this.config.labels.color;
+        c.font = `${this.config.labels.fontSize}px ${this.config.labels.fontFamily}`;
+        c.textAlign = 'end';
+        c.textBaseline = 'middle';
 
-    // updateXAxis() {
-    //     if (this.segmentList === undefined) return;
-    //     this.axesCtx.globalCompositeOperation = 'source-over';
-    //     // ====================== Стиль линий ==========================//
-    //     this.axesCtx.strokeStyle = this.config.axes.color;
-    //     this.axesCtx.lineWidth = 1;
-    //     // ====================== Стиль заливки ==========================//
-    //     this.axesCtx.fillStyle = this.config.labels.mainLabelsColor;
-    //     // ====================== Стиль подписей ==========================//
-    //     this.axesCtx.font = `${this.config.labels.fontSize} ${this.config.labels.fontFamily}`;
-    //     this.axesCtx.textAlign = 'center';
-    //     this.axesCtx.textBaseline = 'top';
-    //     this.axesCtx.setLineDash([]);
-    //     let fullSegmentsLength = this.segmentList.reduce((accum, item) => {
-    //         return accum + (item[1] - item[0]);
-    //     }, 0);
-    //     let segmentWidth;
-    //     let segmentBand;
-    //     let j;
-    //     let x = this.config.axes.padding.left;
-    //     let y = this.canvasHeight - this.config.axes.padding.bottom;
-    //     this.axesCtx.beginPath();
-    //     this.axesCtx.moveTo(x, y);
-    //     for (let i = 0; i < this.segmentList.length; i++) {
-    //         segmentBand = this.segmentList[i][1] - this.segmentList[i][0];
-    //         segmentWidth = (segmentBand / fullSegmentsLength) * this.drawArea.x;
-    //         // Первая засечка
-    //         this.axesCtx.lineTo(Math.floor(x) + 0.5, y + this.config.axes.serifLength);
-    //         this.axesCtx.moveTo(Math.floor(x) + 0.5, y);
-    //         this.axesCtx.fillText(
-    //             this.segmentList[i][0] / 1e6,
-    //             Math.floor(x) + 0.5,
-    //             y + this.config.axes.serifLength + 2
-    //         );
+        if (!this.model.minMax) return;
+        const {
+            y: [yMin, yMax]
+        } = this.model.minMax;
 
-    //         j = 0;
-    //         while (
-    //             segmentWidth / this.config.axes.minXLabelsInterval <
-    //             Math.floor(segmentBand / 1e6 / this.labelsXStep[j])
-    //         ) {
-    //             j++;
-    //             if (j >= this.labelsXStep.length) {
-    //                 j = -1;
-    //                 break;
-    //             }
-    //         }
+        const x = this._drawingArea.x_0;
+        let y = this._drawingArea.y_0;
+        const yW = Math.abs((this._drawingArea.y_0 - this._drawingArea.y_min) / (yMax - yMin));
+        c.beginPath();
+        console.log('start');
+        for (let i = 0; i < this._yLabels.length; i++) {
+            console.log(y);
+            y = this._drawingArea.y_0 - yW * (this._yLabels[i] - yMin);
+            c.moveTo(x - this.config.axes.serifHeight, y);
+            c.lineTo(x, y);
+            c.fillText(String(this._yLabels[i]), x - this.config.axes.serifHeight - this.config.labels.padding, y);
+        }
+        c.stroke();
 
-    //         if (-1 !== j) {
-    //             let labelStep = this.labelsXStep[j];
-    //             this.axesCtx.fillStyle = this.config.labels.color;
-    //             let step_x = (labelStep * segmentWidth) / (segmentBand / 1e6);
-    //             let new_x = x + step_x;
-    //             let countOfLabels = Math.floor((Math.floor(segmentBand / 1e6) + 1) / labelStep);
-    //             for (let k = 1; k < countOfLabels; k++) {
-    //                 this.axesCtx.moveTo(new_x, y);
-    //                 this.axesCtx.lineTo(Math.floor(new_x) + 0.5, y + this.config.axes.serifLength);
-    //                 this.axesCtx.moveTo(Math.floor(new_x) + 0.5, y);
-    //                 this.axesCtx.fillText(
-    //                     this.segmentList[i][0] / 1e6 + this.labelsXStep[j] * k,
-    //                     Math.floor(new_x) + 0.5,
-    //                     y + this.config.axes.serifLength + 2
-    //                 );
-    //                 new_x += step_x;
-    //             }
+        c.beginPath();
+        c.setLineDash([5, 10]);
+        c.strokeStyle = this.config.grid.color;
+        for (let i = 1; i < this._yLabels.length; i++) {
+            y = this._drawingArea.y_0 - yW * (this._yLabels[i] - yMin);
+            c.moveTo(x, y);
 
-    //             this.axesCtx.fillStyle = this.config.labels.mainLabelsColor;
-    //         }
+            c.lineTo(this._drawingArea.x_max, y);
+        }
+        c.stroke();
 
-    //         x += segmentWidth;
-    //         this.axesCtx.moveTo(x, y);
-    //     }
-    //     //this.axesCtx.closePath();
-    //     this.axesCtx.textAlign = 'right';
-    //     this.axesCtx.lineTo(Math.floor(x) + 0.5, y + this.config.axes.serifLength);
-    //     this.axesCtx.moveTo(Math.floor(x) + 0.5, y);
-    //     this.axesCtx.fillText(this.config.labels.unitX, Math.floor(x) + 5.5, y + this.config.axes.serifLength + 2);
-    //     this.axesCtx.stroke();
-    // }
+        // if (labelInterval > 2 * this.config.axes.minYLabelsInterval) {
+        //     labelStep = 5;
+        // } else if (labelInterval < this.config.axes.minYLabelsInterval) {
+        //     labelStep = 20;
+        // }
 
-    // drawSegmentSpectrum(_data, _maxData, _color, _leftOffset, _segmentLength) {
-    //     if (_data === undefined) return;
-    //     if (_color === undefined) _color = this.config.graphics.defaultColor;
-    //     this.maxCtx.strokeStyle = CommonUtils.hexToRgba(_color, this.config.graphics.strokeOpacity);
-    //     this.ctx.fillStyle = CommonUtils.hexToRgba(_color, this.config.graphics.fillOpacity);
-    //     this.ctx.strokeStyle = 'transparent';
-    //     this.maxCtx.lineWidth = this.config.graphics.width;
+        // labelInterval = this.drawArea.y / ((this.maxY - this.minY) / labelStep);
+        // // Массив подписей по оси Y
+        // let labelArray = CommonUtils.range(this.minY, this.maxY, labelStep);
+        // labelArray[labelArray.length - 1] = this.config.labels.unitY;
+        // let x = this.config.axes.padding.left;
+        // let y = this.config.axes.padding.top;
 
-    //     const dataLength = _data.length;
-    //     const step_x = _segmentLength / dataLength;
-    //     const scale_y = this.drawArea.y / (this.maxY - this.minY);
-    //     let x = this.config.axes.padding.left - step_x + 1 + _leftOffset;
-    //     const zeroLine = this.canvasHeight - this.config.axes.padding.bottom - 0.5;
-    //     const parsedData = _data.map((item) => {
-    //         if (item - this.minY < 0) return zeroLine;
-    //         return zeroLine - (item - this.minY) * scale_y;
-    //     });
+        // this.drawHorizontalLine(labelArray.length);
+    }
 
-    //     this.ctx.beginPath();
-    //     for (let i = 0; i < dataLength; i++) {
-    //         x += step_x;
-    //         this.ctx.lineTo(x, parsedData[i]);
-    //     }
-    //     this.ctx.lineTo(x, zeroLine);
-    //     this.ctx.lineTo(this.config.axes.padding.left + _leftOffset, zeroLine);
-    //     this.ctx.lineTo(this.config.axes.padding.left + _leftOffset, parsedData[0]);
-    //     this.ctx.closePath();
-    //     this.ctx.fill();
+    private _updateXAxis() {
+        const c = ctx(this._axesCanvas);
+        c.globalCompositeOperation = 'source-over';
+        // ====================== Стиль линий ==========================//
+        c.strokeStyle = this.config.axes.color;
+        c.lineWidth = 1;
+        c.setLineDash([]);
+        // ====================== Стиль подписей =======================//
+        c.fillStyle = this.config.labels.color;
+        c.font = `${this.config.labels.fontSize}px ${this.config.labels.fontFamily}`;
+        c.textAlign = 'end';
+        c.textBaseline = 'middle';
 
-    //     if (undefined !== _maxData) {
-    //         const parsedMaxData = _maxData.map((item) => {
-    //             if (item - this.minY < 0) return zeroLine;
-    //             return zeroLine - (item - this.minY) * scale_y;
-    //         });
-
-    //         this.maxCtx.beginPath();
-    //         x = this.config.axes.padding.left - step_x + 1 + _leftOffset;
-    //         for (let i = 0; i < dataLength; i++) {
-    //             x += step_x;
-    //             this.maxCtx.lineTo(x, parsedMaxData[i]);
-    //         }
-
-    //         this.maxCtx.stroke();
-    //     }
-    // }
+        c.beginPath();
+        c.moveTo(this._drawingArea.x_0, this._drawingArea.y_0);
+        c.lineTo(this._drawingArea.x_max, this._drawingArea.y_0);
+        c.stroke();
+    }
 
     clear() {
         const axesCtx = ctx(this._axesCanvas);
         axesCtx.clearRect(0, 0, this._width, this._height);
+        this._clearGraphCanvas();
     }
 
-    // updateYAxis() {
-    //     this.axesCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-    //     this.axesCtx.globalCompositeOperation = 'source-over';
-    //     // ====================== Стиль линий ==========================//
-    //     this.axesCtx.strokeStyle = this.config.axes.color;
-    //     this.axesCtx.lineWidth = 1;
-    //     this.axesCtx.setLineDash([]);
-    //     // ====================== Стиль подписей =======================//
-    //     this.axesCtx.fillStyle = this.config.labels.color;
-    //     this.axesCtx.font = `${this.config.labels.fontSize} ${this.config.labels.fontFamily}`;
-    //     this.axesCtx.textAlign = 'right';
-    //     this.axesCtx.textBaseline = 'middle';
-
-    //     // Шаг значений подписей по Y
-    //     let labelStep = 10;
-    //     // Расстояние в пикселях между подписями
-    //     let labelInterval = this.drawArea.y / ((this.maxY - this.minY) / labelStep);
-
-    //     if (labelInterval > 2 * this.config.axes.minYLabelsInterval) {
-    //         labelStep = 5;
-    //     } else if (labelInterval < this.config.axes.minYLabelsInterval) {
-    //         labelStep = 20;
-    //     }
-    //     labelInterval = this.drawArea.y / ((this.maxY - this.minY) / labelStep);
-    //     // Массив подписей по оси Y
-    //     let labelArray = CommonUtils.range(this.minY, this.maxY, labelStep);
-    //     labelArray[labelArray.length - 1] = this.config.labels.unitY;
-    //     let x = this.config.axes.padding.left;
-    //     let y = this.config.axes.padding.top;
-    //     this.axesCtx.beginPath();
-    //     this.axesCtx.moveTo(x, y);
-    //     for (let i = 0; i < labelArray.length - 1; i++) {
-    //         this.axesCtx.lineTo(x - this.config.axes.serifLength, y);
-    //         this.axesCtx.moveTo(x, Math.floor(y) + 0.5);
-    //         this.axesCtx.fillText(labelArray[labelArray.length - i - 1], x - this.config.axes.serifLength - 5, y);
-    //         y = Math.floor(this.config.axes.padding.top + (i + 1) * labelInterval) + 0.5;
-    //         this.axesCtx.lineTo(x, y);
-    //     }
-
-    //     this.axesCtx.lineTo(x - this.config.axes.serifLength, y);
-    //     this.axesCtx.moveTo(x, y);
-    //     this.axesCtx.fillText(labelArray[0], x - this.config.axes.serifLength - 5, y);
-    //     this.axesCtx.lineTo(x, this.canvasHeight - this.config.axes.padding.bottom);
-    //     this.axesCtx.lineTo(
-    //         this.canvasWidth - this.config.axes.padding.right,
-    //         this.canvasHeight - this.config.axes.padding.bottom
-    //     );
-    //     this.axesCtx.stroke();
-
-    //     this.drawHorizontalLine(labelArray.length);
-    // }
-
-    // drawHorizontalLine(numberOfLines) {
-    //     this.axesCtx.strokeStyle = this.config.axes.color;
-    //     this.axesCtx.setLineDash([5, 3]);
-    //     let x = this.config.axes.padding.left + 1;
-    //     let y = this.config.axes.padding.top;
-    //     const lineInterval = this.drawArea.y / (numberOfLines - 1);
-    //     this.axesCtx.beginPath();
-    //     this.axesCtx.moveTo(x, y);
-    //     for (let i = 0; i < numberOfLines - 1; i++) {
-    //         this.axesCtx.lineTo(x + this.drawArea.x - 2, Math.floor(y) + 0.5);
-    //         y += lineInterval;
-    //         this.axesCtx.moveTo(x, Math.floor(y) + 0.5);
-    //     }
-
-    //     this.axesCtx.stroke();
-    //     this.axesCtx.globalCompositeOperation = 'destination-out';
-    //     this.axesCtx.fillStyle = 'red';
-    //     this.axesCtx.arc(this.canvasWidth - 24, 24, 20, 0, 6.2831853071);
-    //     this.axesCtx.closePath();
-    //     this.axesCtx.fill();
-    // }
-
-    // drawPointer(e) {
-    //     const containerBounds = document.querySelector('.spectrum').getBoundingClientRect();
-    //     this.ptrCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-    //     var x = e.clientX - containerBounds.left;
-    //     var y = e.clientY - containerBounds.top;
-    //     if (
-    //         x < this.config.axes.padding.left ||
-    //         x > this.canvasWidth - this.config.axes.padding.right ||
-    //         y < this.config.axes.padding.top ||
-    //         y > this.canvasHeight - this.config.axes.padding.bottom
-    //     )
-    //         return;
-    //     this.ptrCtx.beginPath();
-    //     this.ptrCtx.moveTo(this.config.axes.padding.left, Math.floor(y) + 0.5);
-    //     this.ptrCtx.lineTo(this.canvasWidth - this.config.axes.padding.right, Math.floor(y) + 0.5);
-    //     this.ptrCtx.moveTo(Math.floor(x) + 0.5, this.config.axes.padding.top);
-    //     this.ptrCtx.lineTo(Math.floor(x) + 0.5, this.canvasHeight - this.config.axes.padding.bottom);
-    //     this.ptrCtx.moveTo(this.canvasWidth - this.config.axes.padding.right, Math.floor(y) + 0.5);
-    //     this.ptrCtx.stroke();
-    //     let yLabel = parseInt(
-    //         (this.drawArea.y + this.config.axes.padding.top - y) * ((this.maxY - this.minY) / this.drawArea.y) +
-    //             this.minY
-    //     );
-
-    //     if (this.segmentList !== undefined) {
-    //         let fullSegmentsLength = this.segmentList.reduce((accum, item) => {
-    //             return accum + (item[1] - item[0]);
-    //         }, 0);
-    //         let res = this.drawArea.x / fullSegmentsLength;
-    //         let accSegmentLength = this.config.axes.padding.left;
-    //         let i = -1;
-
-    //         while (accSegmentLength <= x) {
-    //             i++;
-    //             accSegmentLength += (this.segmentList[i][1] - this.segmentList[i][0]) * res;
-    //         }
-
-    //         let freq = Math.round((this.segmentList[i][1] - (accSegmentLength - x) / res) / 1e5) / 10;
-    //         this.ptrCtx.textBaseline = 'top';
-    //         if (x < this.canvasWidth - this.config.axes.padding.right - 70) {
-    //             this.ptrCtx.textAlign = 'start';
-    //             x += 5;
-    //         }
-    //         this.ptrCtx.fillText(freq, Math.floor(x) - 2.5, this.config.axes.padding.top);
-    //     }
-
-    //     this.ptrCtx.textAlign = 'end';
-    //     this.ptrCtx.textBaseline = 'bottom';
-    //     this.ptrCtx.fillText(
-    //         yLabel + this.config.labels.unitY,
-    //         this.canvasWidth - this.config.axes.padding.right,
-    //         Math.floor(y) - 0.5
-    //     );
-    // }
-
-    // handleMouseClick(e) {
-    //     if (e.which == 2) {
-    //         // средняя кнопка мыши
-    //         e.preventDefault();
-    //         const zeroLine = this.canvasHeight - this.config.axes.padding.bottom;
-    //         const deltaY = this.maxY - this.minY;
-    //         const res = deltaY / this.drawArea.y; // разрешение оси Y дБ/пиксель
-    //         let startY = e.clientY - this.resizerWidth;
-
-    //         const g = (e) => {
-    //             const diff = startY - (e.clientY - this.resizerWidth);
-    //             if (!(Math.abs(diff) * res > 1)) {
-    //                 return;
-    //             }
-    //             this.minY -= diff * res;
-    //             this.maxY -= diff * res;
-    //             startY = e.clientY - this.resizerWidth;
-    //         };
-
-    //         document.querySelector('.spectrum').addEventListener('pointermove', g);
-    //         document.querySelector('.spectrum').addEventListener('pointerup', () => {
-    //             document.querySelector('.spectrum').removeEventListener('pointermove', g);
-    //             this.minY = Math.round(this.minY);
-    //             this.maxY = Math.round(this.maxY);
-    //             this.updateYAxis();
-    //             this.updateXAxis();
-    //         });
-    //     }
-    // }
+    private _clearGraphCanvas() {
+        const graphCtx = ctx(this._graphCanvas);
+        graphCtx.clearRect(0, 0, this._width, this._height);
+    }
 }
