@@ -1,11 +1,10 @@
-.spectrum-container {
+.container {
    margin: 10px;
    position: relative;
-   animation-delay:0.1s;
    border-radius: 10px;
 }
 
-.spectrum {
+.spectrum, .signal {
    height: 100%;
    border-radius: 10px;
    border: 2px solid rgba(240, 240, 255, 0.1);

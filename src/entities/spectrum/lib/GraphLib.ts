@@ -75,7 +75,7 @@ export class GraphLib extends Observable {
     };
 
     public config: IGraphLibConfig = {
-        paddings: [50, 50, 10, 10],
+        paddings: [50, 50, 50, 50],
         backgroundColor: '#080e17',
         defaultGraphColor: '#84bff9',
         labels: {
@@ -103,7 +103,7 @@ export class GraphLib extends Observable {
 
     private _yLabelsWidth = 50;
     private _yLabels: number[] = [];
-    private _xLabels = [];
+    private _xLabels: number[] = [];
 
     private get _labelsHeight() {
         return this.config.labels.fontSize * this.config.labels.lineHeight;
@@ -168,6 +168,7 @@ export class GraphLib extends Observable {
     private _configureCanvas(canvas: HTMLCanvasElement) {
         canvas.width = this._width;
         canvas.height = this._height;
+        ctx(canvas).translate(0.5, 0.5);
     }
 
     private _handleContainerResize() {
@@ -183,21 +184,19 @@ export class GraphLib extends Observable {
     private _updateView() {
         this._computeAxisLabels();
         this._recalculateDrawingArea();
-        requestAnimationFrame(() => {
-            this.clear();
-            this.updateAxesLayer();
-            this.updateGraphLayer();
-        });
+        this.clear();
+        this.updateAxesLayer();
+        this.updateGraphLayer();
     }
 
     private _recalculateDrawingArea() {
-        const x0 = this.config.paddings[3] + this._yLabelsWidth + this.config.axes.serifHeight + 0.5;
-        const y0 = this._height - this.config.paddings[0] - this._labelsHeight + 0.5;
+        const x0 = Math.floor(this.config.paddings[3] + this._yLabelsWidth + this.config.axes.serifHeight);
+        const y0 = Math.floor(this._height - this.config.paddings[0] - this._labelsHeight);
         this._drawingArea = {
             x_0: x0,
             y_0: y0,
             x_min: x0,
-            x_max: this._width - this.config.paddings[1],
+            x_max: Math.floor(this._width - this.config.paddings[1]),
             y_min: this.config.paddings[0],
             y_max: y0
         };
@@ -255,7 +254,8 @@ export class GraphLib extends Observable {
                 ? genWrapper(values.x)
                 : rangeGen(values.x[0], values.x[1], values.y.length);
         for (let i = 0; i < values.y.length; i++) {
-            c.lineTo(x_0 + xValuesGen.next().value * xW, y_0 - (values.y[i] - yMin) * yW);
+            const y = y_0 - (values.y[i] - yMin) * yW;
+            c.lineTo(x_0 + xValuesGen.next().value * xW, y >= this._drawingArea.y_0 ? this._drawingArea.y_0 : y);
         }
         c.stroke();
         c.closePath();
@@ -270,7 +270,8 @@ export class GraphLib extends Observable {
         let needRelayouting = false;
 
         const {
-            y: [yMin, yMax]
+            y: [yMin, yMax],
+            x: [xMin, xMax]
         } = this.model.minMax;
 
         // Максимальное количество подписей, которое уместится на текущую ось Y (включая граничные подписи)
@@ -284,15 +285,28 @@ export class GraphLib extends Observable {
         const c = ctx(this._axesCanvas);
         c.font = `${this.config.labels.fontSize}px ${this.config.labels.fontFamily}`;
 
-        const labelArray = smartRange(yMin, yMax, maxYLabelsCount);
-        this._yLabels = labelArray;
+        const yLabelArray = smartRange(yMin, yMax, maxYLabelsCount);
+        this._yLabels = yLabelArray;
         const yLabelMaxWidth = Math.ceil(
-            Math.max(...labelArray.map((label) => c.measureText(String(label)).width)) + this.config.labels.padding
+            Math.max(...yLabelArray.map((label) => c.measureText(String(label)).width)) + this.config.labels.padding
         );
         if (yLabelMaxWidth !== this._yLabelsWidth) {
             this._yLabelsWidth = yLabelMaxWidth;
             needRelayouting = true;
         }
+
+        // Максимальное количество подписей, которое уместится на текущую ось Y (включая граничные подписи)
+        const maxXLabelsCount = Math.floor(
+            (this._drawingArea.x_max - this._drawingArea.x_0) /
+                (this.config.axes.minSpaceBetweenLabels.x + this._labelsHeight) +
+                1
+        );
+
+        if (maxXLabelsCount < 2) return false;
+
+        const xLabelArray = smartRange(xMin, xMax, maxXLabelsCount);
+        this._xLabels = xLabelArray;
+
         return needRelayouting;
     }
 
@@ -326,10 +340,8 @@ export class GraphLib extends Observable {
         let y = this._drawingArea.y_0;
         const yW = Math.abs((this._drawingArea.y_0 - this._drawingArea.y_min) / (yMax - yMin));
         c.beginPath();
-        console.log('start');
         for (let i = 0; i < this._yLabels.length; i++) {
-            console.log(y);
-            y = this._drawingArea.y_0 - yW * (this._yLabels[i] - yMin);
+            y = Math.floor(this._drawingArea.y_0 - yW * (this._yLabels[i] - yMin));
             c.moveTo(x - this.config.axes.serifHeight, y);
             c.lineTo(x, y);
             c.fillText(String(this._yLabels[i]), x - this.config.axes.serifHeight - this.config.labels.padding, y);
@@ -340,7 +352,7 @@ export class GraphLib extends Observable {
         c.setLineDash([5, 10]);
         c.strokeStyle = this.config.grid.color;
         for (let i = 1; i < this._yLabels.length; i++) {
-            y = this._drawingArea.y_0 - yW * (this._yLabels[i] - yMin);
+            y = Math.floor(this._drawingArea.y_0 - yW * (this._yLabels[i] - yMin));
             c.moveTo(x, y);
 
             c.lineTo(this._drawingArea.x_max, y);
@@ -370,15 +382,48 @@ export class GraphLib extends Observable {
         c.strokeStyle = this.config.axes.color;
         c.lineWidth = 1;
         c.setLineDash([]);
-        // ====================== Стиль подписей =======================//
-        c.fillStyle = this.config.labels.color;
-        c.font = `${this.config.labels.fontSize}px ${this.config.labels.fontFamily}`;
-        c.textAlign = 'end';
-        c.textBaseline = 'middle';
 
         c.beginPath();
         c.moveTo(this._drawingArea.x_0, this._drawingArea.y_0);
         c.lineTo(this._drawingArea.x_max, this._drawingArea.y_0);
+        c.stroke();
+        // ====================== Стиль подписей =======================//
+        c.fillStyle = this.config.labels.color;
+        c.font = `${this.config.labels.fontSize}px ${this.config.labels.fontFamily}`;
+        c.textAlign = 'end';
+        c.textBaseline = 'top';
+
+        if (!this.model.minMax) return;
+        const {
+            x: [xMin, xMax]
+        } = this.model.minMax;
+
+        const y = this._drawingArea.y_0;
+        let x = this._drawingArea.x_0;
+        const xW = Math.abs((this._drawingArea.x_max - this._drawingArea.x_0) / (xMax - xMin));
+        c.beginPath();
+        for (let i = 0; i < this._xLabels.length; i++) {
+            x = Math.floor(this._drawingArea.x_0 + xW * (this._xLabels[i] - xMin));
+            c.moveTo(x, y + this.config.axes.serifHeight);
+            c.lineTo(x, y);
+            const textWidth = c.measureText(String(this._xLabels[i])).width;
+            c.fillText(
+                String(this._xLabels[i]),
+                x + textWidth / 2,
+                y + this.config.axes.serifHeight + this.config.labels.padding
+            );
+        }
+        c.stroke();
+
+        c.beginPath();
+        c.setLineDash([5, 10]);
+        c.strokeStyle = this.config.grid.color;
+        for (let i = 1; i < this._xLabels.length; i++) {
+            x = Math.floor(this._drawingArea.x_0 + xW * (this._xLabels[i] - xMin));
+            c.moveTo(x, this._drawingArea.y_0);
+
+            c.lineTo(x, this._drawingArea.y_min);
+        }
         c.stroke();
     }
 

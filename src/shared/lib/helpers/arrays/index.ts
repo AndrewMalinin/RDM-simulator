@@ -57,19 +57,49 @@ export function step(a: number, b: number, s: number) {
     return r;
 }
 
-export function smartRange(a: number, b: number, count: number) {
-    const step = (b - a) / (count - 1);
-    if (Math.abs(step) <= Number.MIN_VALUE) return [];
+const stepDict = [
+    0.1, 0.25, 0.5, 1, 2, 2.5, 4, 5, 10, 20, 25, 50, 75, 100, 125, 150, 200, 250, 400, 500, 750, 1000
+];
+
+export function smartRange(a: number, b: number, maxCount: number) {
+    //debugger
+    let _stepDict = [...stepDict];
+    let maxDelta = stepDict[stepDict.length - 1] * maxCount;
+    const currentDelta = b - a;
+
+    if (maxDelta < currentDelta) {
+        let e = 0;
+        while (maxDelta < currentDelta) {
+            e++;
+            maxDelta = _stepDict[_stepDict.length - 1] * Math.pow(10, e) * maxCount;
+        }
+
+        if (e) {
+            _stepDict = _stepDict.map((s) => s * Math.pow(10, e));
+        }
+    }
+
+    let i = 0;
+    while (Math.ceil((b - a) / _stepDict[i]) > maxCount && i < _stepDict.length) {
+        i++;
+    }
+    let step = _stepDict[i];
+
+    if (Math.abs(step) <= Number.MIN_VALUE) return [a, b];
     const r = [];
     let temp = a;
-    for (let i = 0; i < count; i++) {
+    while (temp <= Math.ceil(b / step) * step && r.length <= maxCount) {
         r.push(Math.round(temp * 1000) / 1000);
-        temp += step;
+        temp = Math.floor((temp + step) / step) * step;
     }
+
     // Поправка на случай иррационального step
-    if (r[count - 1] !== b) {
-        r[count - 1] = b;
+    if (r.length > 0 && r[r.length - 1] !== b) {
+        r[r.length - 1] = b;
+    } else if (!r.length) {
+        return [a, b];
     }
+
     return r;
 }
 
